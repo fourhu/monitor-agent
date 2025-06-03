@@ -68,6 +68,10 @@
         config:
         - name_prefix = "agent_"
         - collect_memstats = false
+      - plugin: nvidia_smi
+        config:
+        - name_prefix = "agent_"
+        - timeout = "5s"
     when:
     - server_type == "guest"
     - ansible_facts['os_family'] != "Windows"
