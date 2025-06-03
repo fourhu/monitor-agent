@@ -17,7 +17,19 @@
       - insecure_skip_verify = true
 
   tasks:
-  - name: "Deploy monitor agent for Guest"
+  - name: "Check if NVIDIA GPU is present and accessible"
+    shell: "nvidia-smi -L 2>/dev/null | grep -c '^GPU'"
+    register: gpu_count
+    failed_when: false
+    changed_when: false
+    when: ansible_facts['os_family'] != "Windows"
+
+  - name: "Set GPU present fact"
+    set_fact:
+      gpu_present: "{{ (gpu_count.stdout | default('0') | int) > 0 }}"
+    when: ansible_facts['os_family'] != "Windows"
+
+  - name: "Deploy base monitor agent for Guest (Linux)"
     include_role:
       name: ansible-telegraf
     vars:
@@ -71,6 +83,20 @@
     when:
     - server_type == "guest"
     - ansible_facts['os_family'] != "Windows"
+
+  - name: "Add NVIDIA monitoring if GPU present"
+    include_role:
+      name: ansible-telegraf
+    vars:
+      telegraf_plugins_additional:
+      - plugin: nvidia_smi
+        config:
+        - name_prefix = "agent_"
+        - timeout = "5s"
+    when:
+    - server_type == "guest"
+    - ansible_facts['os_family'] != "Windows"
+    - gpu_present | default(false)
 
   - name: "Deploy monitor agent for Windows Guest"
     include_role:
